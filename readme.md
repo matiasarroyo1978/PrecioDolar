@@ -8,26 +8,18 @@ La extensión devuelve el valor diario del dólar oficial, dólar blue, dolar ta
 
 La misma fue creada con React y TypeScript mediante el uso de [CRXJS](https://github.com/crxjs/chrome-extension-tools), usando librerías externas como react-icons para los iconos y framer-motion para las animaciones.
 
-## Características
-
-<img src="./src/assets/PosterFront.png" border="0">
-<img src="./src/assets/PosterBack.png" border="0">
-
 ## Instalación
 
 ### Instalación mediante la store oficial
 
-Para instalar la extensión directo desde la store oficial de Chrome, [clickear aquí](https://t.co/k3usF9snUz).
+Para instalar la extensión directo desde la store oficial de Chrome, [clickear aquí](https://chromewebstore.google.com/detail/preciodolar-cotizaci%C3%B3n-de/enflmlokijgloihaaogoabnonjicbonb).
 
 ### Instalación manual
 
-Para instalar la extensión, descargar de este mismo repositorio la carpeta llamada "dolarLiveExtension".
+Para instalar la extensión, descargar de este mismo repositorio la carpeta llamada "PrecioDolar".
 Luego, en Chrome:
 
 `Más herramientas > Extensiones > Activar modo desarrollador > Cargar descomprimida.`
 
-Una vez abierto el recruadro de búsqueda de archivos, seleccionar la carpeta "dolarLiveExtension" previamente descargada.
+Una vez abierto el recruadro de búsqueda de archivos, seleccionar la carpeta "PrecioDolar" previamente descargada.
 
-## Agradecimientos
-
-Mención y agradecimiento a [Enzo Notario](https://github.com/enzonotario) por ser el creador de la API que utilicé para hacer posible este proyecto 😁
