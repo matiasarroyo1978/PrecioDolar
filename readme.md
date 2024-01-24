@@ -10,7 +10,7 @@ La misma fue creada con React y TypeScript mediante el uso de [CRXJS](https://gi
 
 ## Vista Previa
 
-<img  src="https://raw.githubusercontent.com/matiasarroyo1978/PrecioDolar/src/assets/dolar.png" alt="" />
+<img  src="https://raw.githubusercontent.com/matiasarroyo1978/PrecioDolar/src/assets/dolar.png" alt="precio dolar" />
 
 ## Instalación
 
