@@ -8,6 +8,10 @@ La extensión devuelve el valor diario del dólar oficial, dólar blue, dolar ta
 
 La misma fue creada con React y TypeScript mediante el uso de [CRXJS](https://github.com/crxjs/chrome-extension-tools), usando librerías externas como react-icons para los iconos y framer-motion para las animaciones.
 
+##Vista Previa
+
+<img  src="https://raw.githubusercontent.com/matiasarroyo1978/PrecioDolar/src/assets/dolar.png" alt="" />
+
 ## Instalación
 
 ### Instalación mediante la store oficial
