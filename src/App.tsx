@@ -20,8 +20,10 @@ import { getStorageViewValue, storageView } from "./utils/utils";
 
 function App() {
   const [dolar, setDolar] = useState<CurrencyData[]>([]);
+  const [real, setReal] = useState<CurrencyData[]>([]);
   const [calculator, setCalculator] = useState(false);
   const [isCalculatorPinned, setIsCalculatorPinned] = useState(false);
+  const [precioReal, setPrecioReal] = useState<number | null>(null);
 
   const getStorageView = () => {
     const storage = localStorage.getItem("IsCalculatorSticky");
@@ -29,29 +31,53 @@ function App() {
       setCalculator(storage === "true");
     }
   };
-
+  const URLS = {
+    dollars: "https://dolarapi.com/v1/dolares",
+    real: "https://dolarapi.com/v1/cotizaciones/brl",
+  };
+ 
   useEffect(() => {
-    const URLS = {
-      dollars: "https://dolarapi.com/v1/dolares",
-    };
-
-    const getDolars = async () => {
+    const fetchData = async () => {
       try {
-        const { data } = await axios.get(URLS.dollars);
-        const sortedData = data.sort((a: CurrencyData, b: CurrencyData) => {
+        // Obtener datos de dólares
+        const dollarsResponse = await axios.get(URLS.dollars);
+        const sortedDollarData = dollarsResponse.data.sort((a: CurrencyData, b: CurrencyData) => {
           if (a.nombre === "Blue") return -1;
           if (b.nombre === "Blue") return 1;
           return 0;
         });
-        setDolar(sortedData);
-      } catch (err) {
-        console.log("Hubo un error al obtener el valor del dolar", err);
+
+        // Actualizar 'dolar' con los datos de dólares
+        setDolar(sortedDollarData);
+
+        // Obtener datos del Real
+        const realResponse = await axios.get(URLS.real);
+        const realData = realResponse.data;
+
+        if (realData && realData.moneda === "BRL" && realData.nombre === "Real Brasileño") {
+          const dolarBlue = sortedDollarData.find((currency: any) => currency.nombre === "Blue");
+          const dolarOficial = sortedDollarData.find((currency: any) => currency.nombre === "Oficial");
+
+          if (dolarBlue && dolarOficial) {
+            const nuevoPrecioReal = (realData.compra * dolarBlue.compra) / dolarOficial.compra;
+            setPrecioReal(nuevoPrecioReal);
+            setReal((prevReal) => {
+              const isRealBlueInReal = prevReal.some((currency: any) => currency.nombre === "Real Blue");
+              return isRealBlueInReal ? prevReal : [...prevReal, { ...realData, nombre: "Real Blue", venta: nuevoPrecioReal }];
+            });
+          } else {
+            console.error("No se pudieron encontrar las tasas necesarias para calcular el precio del Real.");
+          }
+        } else {
+          console.error("La respuesta de la API no tiene la estructura esperada:", realData);
+        }
+      } catch (error) {
+        console.log("Hubo un error al obtener los valores de dólares y el Real", error);
       }
     };
 
-    getStorageView();
-    getDolars();
-  }, []);
+    fetchData(); // Llamar a la función que obtiene datos
+  },);
 
   useLayoutEffect(() => {
     const greenLights = document.querySelectorAll('[id^="green"]');
@@ -102,13 +128,12 @@ function App() {
             initial={{ opacity: 0, scale: 0 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="currencies-container"
-          >
+            className="currencies-container">
             {dolar.map((dolar: any) => (
               <CurrencyComponent
                 key={dolar.nombre}
                 type={
-                  dolar.nombre == "Contado con liquidación"
+                  dolar.nombre === "Contado con liquidación"
                     ? "CCL"
                     : dolar.nombre
                 }
@@ -116,10 +141,18 @@ function App() {
                 sellValue={dolar.venta}
               />
             ))}
+            {precioReal !== null && (
+              <CurrencyComponent
+                key="RealBlue"
+                type="Real Blue"
+                buyValue={precioReal} // Usamos el precio calculado como el valor de compra
+                sellValue={precioReal} // Puedes ajustar esto según tus necesidades
+              />
+            )}
           </motion.div>
         ) : null}
       </AnimatePresence>
-      {calculator ? <Calculator currencies={dolar} /> : null}
+      {calculator ? <Calculator currencies={dolar} real={real}/> : null}
       <Divider />
       <div className="btns-container">
         <motion.button
@@ -128,8 +161,7 @@ function App() {
           variants={variants}
           onClick={() => {
             setCalculator(!calculator);
-          }}
-        >
+          }}>
           {!calculator ? <IoCalculatorOutline /> : <PiBackspaceLight />}
           <span>{!calculator ? "Calculadora" : "Atrás"}</span>
         </motion.button>
@@ -143,8 +175,7 @@ function App() {
                 storageView(false);
                 getStorageView();
                 setIsCalculatorPinned(false);
-              }}
-            >
+              }}>
               <PiPushPinSimpleSlashLight />
               Desfijar
             </motion.button>
@@ -157,8 +188,7 @@ function App() {
                 storageView(true);
                 getStorageView();
                 setIsCalculatorPinned(true);
-              }}
-            >
+              }}>
               <PiPushPinSimpleLight />
               Fijar calculadora
             </motion.button>
