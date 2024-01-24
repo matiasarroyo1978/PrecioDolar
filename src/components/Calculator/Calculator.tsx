@@ -3,52 +3,54 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import CurrencyInput from "react-currency-input-field";
 import { AiOutlineDollarCircle } from "react-icons/ai";
+import { FaBrazilianRealSign } from "react-icons/fa6";
 import { BsTrash } from "react-icons/bs";
 import { FaRegMoneyBillAlt } from "react-icons/fa";
 import { CalculatorProps, CurrencyData } from "../../interfaces/interfaces";
 
-export const Calculator = ({ currencies }: CalculatorProps) => {
+export const Calculator = ({ currencies, real }: CalculatorProps) => {
   const [selectedCurrency, setSelectedCurrency] = useState<CurrencyData | null>(
     null
   );
+  const [usdConversionValue, setUsdConversionValue] = useState<string>("");
+  const [usdToArs, setUsdToArs] = useState<string | number>("");
+  const [isInitialSelection, setIsInitialSelection] = useState<boolean>(false);
 
   useEffect(() => {
-    if (currencies.length > 0) {
+    if (currencies.length > 0 && !isInitialSelection) {
       const initialCurrency =
-        currencies.find((c) => c.nombre === "Blue") || currencies[0];
+        currencies.find((c) => c.nombre === "Real Blue") || currencies[0];
       setSelectedCurrency(initialCurrency);
+      setIsInitialSelection(true);
     }
-  }, [currencies]);
-
-  const [usdConversionValue, setUsdConversionValue] = useState<string | number>(
-    ""
-  );
-  const [usdToArs, setUsdToArs] = useState<string | number>("");
+  }, [currencies, isInitialSelection]);
+  useEffect(() => {
+    setUsdConversionValue("");
+    setUsdToArs("");
+  }, [selectedCurrency]);
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5, ease: "easeInOut" }}
-      className="calculator-container"
-    >
+      className="calculator-container">
       <FormControl fullWidth sx={{ my: 2 }} color="success">
-        <InputLabel id="currency-select-label">Tipo de USD</InputLabel>
+        <InputLabel id="currency-select-label">Tipo de moneda</InputLabel>
         <Select
           labelId="currency-select-label"
           id="currency-select"
           value={selectedCurrency ? selectedCurrency.nombre : ""}
-          label="Tipo de USD"
+          label="Tipo de moneda"
           onChange={(e) => {
-            const selected = currencies.find(
-              (currency) => currency.nombre === e.target.value
-            );
+            const selected = currencies
+              .concat(real)
+              .find((currency) => currency.nombre === e.target.value);
             if (selected) {
               setSelectedCurrency(selected);
             }
-          }}
-        >
-          {currencies.map((currency) => (
+          }}>
+          {currencies.concat(real || []).map((currency) => (
             <MenuItem key={currency.nombre} value={currency.nombre}>
               {currency.nombre}
             </MenuItem>
@@ -73,26 +75,38 @@ export const Calculator = ({ currencies }: CalculatorProps) => {
       <div className="conversor-container">
         <div className="input-container">
           <div className="coin-container">
-            <AiOutlineDollarCircle />
+            {selectedCurrency?.nombre === "Real Blue" ? (
+              <FaBrazilianRealSign />
+            ) : (
+              <AiOutlineDollarCircle />
+            )}
           </div>
           <CurrencyInput
-            suffix=" USD"
+            suffix={selectedCurrency?.nombre === "Real Blue" ? " BRL" : " USD"}
             prefix="$"
             className="input"
             name="usd-input"
-            placeholder="USD"
+            placeholder={
+              selectedCurrency?.nombre === "Real Blue" ? "BRL" : "USD"
+            }
             groupSeparator="."
             decimalSeparator=","
-            intlConfig={{ locale: "en-US", currency: "USD" }}
+            intlConfig={{
+              locale: "en-US",
+              currency:
+                selectedCurrency?.nombre === "Real Blue" ? "BRL" : "USD",
+            }}
             autoFocus={true}
             decimalsLimit={2}
             value={usdConversionValue}
-            onValueChange={(value) => {
-              if (value !== undefined) {
-                setUsdConversionValue(value);
-              } else {
-                setUsdConversionValue("");
-              }
+            onChange={(e) => {
+              const inputValue = e.target.value;
+
+              // Verificar si el valor es válido (opcional)
+              const sanitizedValue = inputValue.replace(/[^0-9]/g, '');
+
+              // Actualizar el estado
+              setUsdConversionValue(sanitizedValue);
             }}
           />
           <div className="delete-container">
@@ -102,8 +116,7 @@ export const Calculator = ({ currencies }: CalculatorProps) => {
                   initial={{ opacity: 0, scale: 0, y: -25 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0, y: 25 }}
-                  transition={{ duration: 0.3, ease: "easeInOut" }}
-                >
+                  transition={{ duration: 0.3, ease: "easeInOut" }}>
                   <BsTrash
                     onClick={() => {
                       setUsdConversionValue("");
@@ -154,7 +167,8 @@ export const Calculator = ({ currencies }: CalculatorProps) => {
             value={usdToArs}
             onValueChange={(value) => {
               if (value !== undefined) {
-                setUsdToArs(value);
+                const sanitizedValue = value.replace(/[^0-9]/g, '');
+                setUsdToArs(sanitizedValue);
               } else {
                 setUsdToArs("");
               }
@@ -167,8 +181,7 @@ export const Calculator = ({ currencies }: CalculatorProps) => {
                   initial={{ opacity: 0, scale: 0, y: -25 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0, y: 25 }}
-                  transition={{ duration: 0.3, ease: "easeInOut" }}
-                >
+                  transition={{ duration: 0.3, ease: "easeInOut" }}>
                   <BsTrash
                     onClick={() => {
                       setUsdToArs("");
@@ -182,7 +195,9 @@ export const Calculator = ({ currencies }: CalculatorProps) => {
         <div className="result-container">
           {selectedCurrency ? (
             <CurrencyInput
-              suffix=" USD"
+              suffix={
+                selectedCurrency?.nombre === "Real Blue" ? " BRL" : " USD"
+              }
               prefix="$"
               className="input-result"
               name="usd-output"
