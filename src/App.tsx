@@ -1,203 +1,180 @@
-import axios from "axios";
+import { useState, useMemo } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
-import { gsap } from "gsap";
-import { useEffect, useLayoutEffect, useState } from "react";
-import { IoCalculatorOutline } from "react-icons/io5";
-import {
-  PiBackspaceLight,
-  PiPushPinSimpleLight,
-  PiPushPinSimpleSlashLight,
-} from "react-icons/pi";
-import "./App.css";
-import { Calculator } from "./components/Calculator/Calculator";
-import { CurrencyComponent } from "./components/CurrencyComponent/CurrencyComponent";
-import { Divider } from "./components/Divider/Divider";
-import { Footer } from "./components/Footer/Footer";
+import { ThemeProvider } from "./context/ThemeContext";
+import { useCurrencies, formatDate } from "./hooks/useCurrencies";
 import { Header } from "./components/Header/Header";
+import { Footer } from "./components/Footer/Footer";
+import { CurrencyCard } from "./components/CurrencyCard/CurrencyCard";
+import { Calculator } from "./components/Calculator/Calculator";
+import { HistoricalChart } from "./components/HistoricalChart/HistoricalChart";
+import { AlertsPanel } from "./components/Alerts/AlertsPanel";
 import { LastUpdated } from "./components/LastUpdated/LastUpdated";
-import { CurrencyData } from "./interfaces/interfaces";
-import { getStorageViewValue, storageView } from "./utils/utils";
+import { TabNavigation, TabType } from "./components/Navigation/TabNavigation";
+import { CurrencySkeleton } from "./components/ui/Skeleton";
+import "./index.css";
 
-function App() {
-  const [dolar, setDolar] = useState<CurrencyData[]>([]);
-  const [real, setReal] = useState<CurrencyData[]>([]);
-  const [calculator, setCalculator] = useState(false);
-  const [isCalculatorPinned, setIsCalculatorPinned] = useState(false);
-  const [precioReal, setPrecioReal] = useState<number | null>(null);
+// Crear cliente de React Query
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 2,
+    },
+  },
+});
 
-  const getStorageView = () => {
-    const storage = localStorage.getItem("IsCalculatorSticky");
-    if (storage) {
-      setCalculator(storage === "true");
-    }
-  };
-  const URLS = {
-    dollars: "https://dolarapi.com/v1/dolares",
-    real: "https://dolarapi.com/v1/cotizaciones/brl",
-  };
- 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Obtener datos de dólares
-        const dollarsResponse = await axios.get(URLS.dollars);
-        const sortedDollarData = dollarsResponse.data.sort((a: CurrencyData, b: CurrencyData) => {
-          if (a.nombre === "Blue") return -1;
-          if (b.nombre === "Blue") return 1;
-          return 0;
-        });
+// Componente principal de la aplicación
+const AppContent = () => {
+  const [activeTab, setActiveTab] = useState<TabType>("currencies");
+  const { data, isLoading, isRefetching, refetch } = useCurrencies();
 
-        // Actualizar 'dolar' con los datos de dólares
-        setDolar(sortedDollarData);
+  // Formatear fecha de actualización
+  const formattedDate = useMemo(() => {
+    if (!data?.lastUpdated) return "";
+    return formatDate(data.lastUpdated);
+  }, [data?.lastUpdated]);
 
-        // Obtener datos del Real
-        const realResponse = await axios.get(URLS.real);
-        const realData = realResponse.data;
-
-        if (realData && realData.moneda === "BRL" && realData.nombre === "Real Brasileño") {
-          const dolarBlue = sortedDollarData.find((currency: any) => currency.nombre === "Blue");
-          const dolarOficial = sortedDollarData.find((currency: any) => currency.nombre === "Oficial");
-
-          if (dolarBlue && dolarOficial) {
-            const nuevoPrecioReal = (realData.compra * dolarBlue.compra) / dolarOficial.compra;
-            setPrecioReal(nuevoPrecioReal);
-            setReal((prevReal) => {
-              const isRealBlueInReal = prevReal.some((currency: any) => currency.nombre === "Real Blue");
-              return isRealBlueInReal ? prevReal : [...prevReal, { ...realData, nombre: "Real Blue", venta: nuevoPrecioReal }];
-            });
-          } else {
-            console.error("No se pudieron encontrar las tasas necesarias para calcular el precio del Real.");
-          }
-        } else {
-          console.error("La respuesta de la API no tiene la estructura esperada:", realData);
-        }
-      } catch (error) {
-        console.log("Hubo un error al obtener los valores de dólares y el Real", error);
-      }
-    };
-
-    fetchData(); // Llamar a la función que obtiene datos
-  },);
-
-  useLayoutEffect(() => {
-    const greenLights = document.querySelectorAll('[id^="green"]');
-    const redLights = document.querySelectorAll('[id^="red"]');
-
-    const tl = gsap.timeline({ repeat: -1, yoyo: true });
-
-    tl.to(greenLights, {
-      duration: 0.5,
-      fill: "#FA352D",
-      ease: "easeIn",
-      stagger: 0.1,
-    }).to(redLights, {
-      duration: 0.5,
-      fill: "#9CBE34",
-      ease: "easeIn",
-      stagger: 0.1,
-      delay: 0.1,
+  // Obtener precios actuales para alertas
+  const currentPrices = useMemo(() => {
+    if (!data?.dollars) return {};
+    const prices: Record<string, number> = {};
+    data.dollars.forEach((d) => {
+      prices[d.nombre] = d.venta;
     });
-  }, []);
+    return prices;
+  }, [data?.dollars]);
 
-  const date = new Date(dolar[0]?.fechaActualizacion),
-    day = date.getDate(),
-    month = date.getMonth() + 1,
-    year = date.getFullYear().toString().slice(2),
-    hours = date.getHours();
-  const formattedDate = `${day}/${month}/${year} a las ${hours}hs`;
+  // Renderizar contenido según tab activo
+  const renderContent = () => {
+    switch (activeTab) {
+      case "currencies":
+        return (
+          <motion.div
+            key="currencies"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="space-y-4"
+          >
+            {/* Grid de monedas */}
+            <div className="grid grid-cols-2 gap-3">
+              {isLoading ? (
+                // Skeletons mientras carga
+                <>
+                  {[...Array(6)].map((_, i) => (
+                    <CurrencySkeleton key={i} />
+                  ))}
+                </>
+              ) : (
+                // Tarjetas de monedas
+                <>
+                  {data?.dollars.map((currency, index) => (
+                    <CurrencyCard
+                      key={currency.nombre}
+                      type={
+                        currency.nombre === "Contado con liquidación"
+                          ? "CCL"
+                          : currency.nombre
+                      }
+                      buyValue={currency.compra}
+                      sellValue={currency.venta}
+                      delay={index}
+                    />
+                  ))}
+                  {data?.real && (
+                    <CurrencyCard
+                      type="Real Blue"
+                      buyValue={data.real.compra}
+                      sellValue={data.real.venta}
+                      delay={data.dollars.length}
+                    />
+                  )}
+                </>
+              )}
+            </div>
 
-  const variants = {
-    hidden: { scale: 0 },
-    visible: () => ({
-      scale: 1,
-      transition: { duration: 0.2, ease: "easeIn" },
-    }),
-    fadeOut: () => ({
-      opacity: 0,
-      transition: { duration: 0.2, ease: "easeIn" },
-    }),
+            {/* Última actualización */}
+            <LastUpdated
+              fullDate={formattedDate}
+              isLoading={isLoading}
+              onRefresh={() => refetch()}
+            />
+          </motion.div>
+        );
+
+      case "calculator":
+        return (
+          <motion.div
+            key="calculator"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+          >
+            <Calculator
+              currencies={data?.dollars || []}
+              real={data?.real || null}
+            />
+          </motion.div>
+        );
+
+      case "chart":
+        return (
+          <motion.div
+            key="chart"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+          >
+            <HistoricalChart />
+          </motion.div>
+        );
+
+      case "alerts":
+        return (
+          <motion.div
+            key="alerts"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+          >
+            <AlertsPanel currentPrices={currentPrices} />
+          </motion.div>
+        );
+
+      default:
+        return null;
+    }
   };
 
   return (
-    <div className="extension-container">
-      <Header />
-      <Divider />
-      <AnimatePresence>
-        {!calculator ? (
-          <motion.div
-            initial={{ opacity: 0, scale: 0 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="currencies-container">
-            {dolar.map((dolar: any) => (
-              <CurrencyComponent
-                key={dolar.nombre}
-                type={
-                  dolar.nombre === "Contado con liquidación"
-                    ? "CCL"
-                    : dolar.nombre
-                }
-                buyValue={dolar.compra}
-                sellValue={dolar.venta}
-              />
-            ))}
-            {precioReal !== null && (
-              <CurrencyComponent
-                key="RealBlue"
-                type="Real Blue"
-                buyValue={precioReal} // Usamos el precio calculado como el valor de compra
-                sellValue={precioReal} // Puedes ajustar esto según tus necesidades
-              />
-            )}
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-      {calculator ? <Calculator currencies={dolar} real={real}/> : null}
-      <Divider />
-      <div className="btns-container">
-        <motion.button
-          initial="hidden"
-          animate="visible"
-          variants={variants}
-          onClick={() => {
-            setCalculator(!calculator);
-          }}>
-          {!calculator ? <IoCalculatorOutline /> : <PiBackspaceLight />}
-          <span>{!calculator ? "Calculadora" : "Atrás"}</span>
-        </motion.button>
-        {calculator ? (
-          getStorageViewValue() ? (
-            <motion.button
-              initial="hidden"
-              animate="visible"
-              variants={variants}
-              onClick={() => {
-                storageView(false);
-                getStorageView();
-                setIsCalculatorPinned(false);
-              }}>
-              <PiPushPinSimpleSlashLight />
-              Desfijar
-            </motion.button>
-          ) : (
-            <motion.button
-              initial="hidden"
-              animate={isCalculatorPinned ? "fadeOut" : "visible"}
-              variants={variants}
-              onClick={() => {
-                storageView(true);
-                getStorageView();
-                setIsCalculatorPinned(true);
-              }}>
-              <PiPushPinSimpleLight />
-              Fijar calculadora
-            </motion.button>
-          )
-        ) : null}
-      </div>
-      <LastUpdated fullDate={formattedDate} />
+    <div className="extension-wrapper flex flex-col min-h-screen">
+      {/* Header */}
+      <Header onRefresh={() => refetch()} isRefreshing={isRefetching} />
+
+      {/* Contenido principal */}
+      <main className="flex-1 px-4 py-4 space-y-4 overflow-y-auto">
+        {/* Navegación por tabs */}
+        <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
+
+        {/* Contenido dinámico */}
+        <AnimatePresence mode="wait">{renderContent()}</AnimatePresence>
+      </main>
+
+      {/* Footer */}
       <Footer />
     </div>
+  );
+};
+
+// App con providers
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }
 
