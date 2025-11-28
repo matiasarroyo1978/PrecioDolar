@@ -16,6 +16,8 @@ interface CalculatorProps {
   real: CurrencyData | null;
 }
 
+type PriceType = "venta" | "compra";
+
 export const Calculator = ({ currencies, real }: CalculatorProps) => {
   const [selectedCurrency, setSelectedCurrency] = useState<CurrencyData | null>(
     null
@@ -23,6 +25,7 @@ export const Calculator = ({ currencies, real }: CalculatorProps) => {
   const [amount, setAmount] = useState<string>("");
   const [isReversed, setIsReversed] = useState(false);
   const [isSelectOpen, setIsSelectOpen] = useState(false);
+  const [priceType, setPriceType] = useState<PriceType>("venta");
 
   // Combinar monedas disponibles - memoizado para evitar recreación en cada render
   const allCurrencies = useMemo(
@@ -49,14 +52,23 @@ export const Calculator = ({ currencies, real }: CalculatorProps) => {
     const numAmount = parseFloat(amount.replace(/[^0-9.-]/g, ""));
     if (isNaN(numAmount)) return 0;
 
+    const price =
+      priceType === "venta" ? selectedCurrency.venta : selectedCurrency.compra;
+
     if (isReversed) {
       // ARS a USD/BRL
-      return numAmount / selectedCurrency.venta;
+      return numAmount / price;
     } else {
       // USD/BRL a ARS
-      return numAmount * selectedCurrency.venta;
+      return numAmount * price;
     }
   };
+
+  const currentPrice = selectedCurrency
+    ? priceType === "venta"
+      ? selectedCurrency.venta
+      : selectedCurrency.compra
+    : 0;
 
   const result = calculateResult();
   const isRealBlue = selectedCurrency?.nombre === "Real Blue";
@@ -101,8 +113,8 @@ export const Calculator = ({ currencies, real }: CalculatorProps) => {
               </span>
               {selectedCurrency && (
                 <p className="text-xs text-var(--text-muted)">
-                  1 {currencySymbol} ={" "}
-                  {formatPrice(Math.round(selectedCurrency.venta))}
+                  1 {currencySymbol} = {formatPrice(Math.round(currentPrice))} (
+                  {priceType})
                 </p>
               )}
             </div>
@@ -124,8 +136,9 @@ export const Calculator = ({ currencies, real }: CalculatorProps) => {
               exit={{ opacity: 0, y: -10 }}
               className={cn(
                 "absolute z-50 w-full mt-2 py-2 rounded-xl",
-                "bg-var(--bg-secondary) border border-var(--border-color)",
-                "shadow-lg max-h-60 overflow-y-auto"
+                "bg-var(--bg-card) border border-var(--border-color)",
+                "shadow-xl backdrop-blur-sm max-h-60 overflow-y-auto",
+                "dark:bg-gray-800 bg-white"
               )}
             >
               {allCurrencies.map((currency) => (
@@ -137,17 +150,17 @@ export const Calculator = ({ currencies, real }: CalculatorProps) => {
                   }}
                   className={cn(
                     "w-full px-4 py-2 flex items-center gap-3 text-left",
-                    "hover:bg-var(--bg-card) transition-colors",
+                    "hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors",
                     selectedCurrency?.nombre === currency.nombre &&
-                      "bg-var(--bg-card)"
+                      "bg-gray-100 dark:bg-gray-700"
                   )}
                 >
                   <span>{currency.nombre === "Real Blue" ? "🇧🇷" : "💵"}</span>
                   <div>
-                    <span className="font-medium text-var(--text-primary)">
+                    <span className="font-medium text-gray-900 dark:text-white">
                       {currency.nombre}
                     </span>
-                    <p className="text-xs text-var(--text-muted)">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
                       {formatPrice(Math.round(currency.venta))}
                     </p>
                   </div>
@@ -156,6 +169,34 @@ export const Calculator = ({ currencies, real }: CalculatorProps) => {
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
+
+      {/* Selector de tipo de precio */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setPriceType("venta")}
+          className={cn(
+            "flex-1 py-2 px-3 rounded-xl text-sm font-medium transition-all duration-200",
+            "border",
+            priceType === "venta"
+              ? "bg-emerald-500 text-white border-emerald-500"
+              : "bg-var(--bg-card) text-var(--text-muted) border-var(--border-color) hover:border-emerald-500"
+          )}
+        >
+          Precio Venta
+        </button>
+        <button
+          onClick={() => setPriceType("compra")}
+          className={cn(
+            "flex-1 py-2 px-3 rounded-xl text-sm font-medium transition-all duration-200",
+            "border",
+            priceType === "compra"
+              ? "bg-blue-500 text-white border-blue-500"
+              : "bg-var(--bg-card) text-var(--text-muted) border-var(--border-color) hover:border-blue-500"
+          )}
+        >
+          Precio Compra
+        </button>
       </div>
 
       {/* Inputs de conversión */}
@@ -254,10 +295,24 @@ export const Calculator = ({ currencies, real }: CalculatorProps) => {
           <div className="flex items-center justify-between text-sm">
             <span className="text-var(--text-muted)">Cotización actual</span>
             <div className="text-right">
-              <p className="font-medium text-var(--text-primary)">
+              <p
+                className={cn(
+                  "font-medium",
+                  priceType === "venta"
+                    ? "text-emerald-500"
+                    : "text-var(--text-primary)"
+                )}
+              >
                 Venta: {formatPrice(Math.round(selectedCurrency.venta))}
               </p>
-              <p className="text-xs text-var(--text-muted)">
+              <p
+                className={cn(
+                  "text-xs",
+                  priceType === "compra"
+                    ? "text-blue-500 font-medium"
+                    : "text-var(--text-muted)"
+                )}
+              >
                 Compra: {formatPrice(Math.round(selectedCurrency.compra))}
               </p>
             </div>
