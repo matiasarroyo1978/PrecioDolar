@@ -106,25 +106,68 @@ export interface HistoricalData {
   venta: number;
 }
 
-// Fetch datos históricos (últimos 30 días)
+// Tipos de períodos disponibles
+export type TimePeriod = "30d" | "6m" | "ytd" | "1y" | "5y" | "all";
+
+export interface TimePeriodOption {
+  value: TimePeriod;
+  label: string;
+  days: number | null; // null para "all" o cálculo dinámico
+}
+
+export const TIME_PERIOD_OPTIONS: TimePeriodOption[] = [
+  { value: "30d", label: "30 días", days: 30 },
+  { value: "6m", label: "6 meses", days: 180 },
+  { value: "ytd", label: "YTD", days: null }, // Year to date - calculado dinámicamente
+  { value: "1y", label: "1 año", days: 365 },
+  { value: "5y", label: "5 años", days: 1825 },
+  { value: "all", label: "Todo", days: null },
+];
+
+// Calcular días para YTD (desde el 1 de enero del año actual)
+const getYTDDays = (): number => {
+  const now = new Date();
+  const startOfYear = new Date(now.getFullYear(), 0, 1);
+  const diffTime = Math.abs(now.getTime() - startOfYear.getTime());
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+};
+
+// Fetch datos históricos con período configurable
 const fetchHistoricalData = async (
-  casa = "blue"
+  casa = "blue",
+  period: TimePeriod = "30d"
 ): Promise<HistoricalData[]> => {
   try {
     const response = await axios.get(`${API_URLS.historical}/${casa}`);
-    // Obtener últimos 30 días
-    const data = response.data.slice(-30);
-    return data;
+    const allData: HistoricalData[] = response.data;
+
+    if (period === "all") {
+      return allData;
+    }
+
+    let daysToFetch: number;
+    if (period === "ytd") {
+      daysToFetch = getYTDDays();
+    } else {
+      const periodOption = TIME_PERIOD_OPTIONS.find((p) => p.value === period);
+      daysToFetch = periodOption?.days || 30;
+    }
+
+    // Obtener los últimos N días
+    return allData.slice(-daysToFetch);
   } catch {
     return [];
   }
 };
 
-// Hook para datos históricos
-export const useHistoricalData = (casa = "blue") => {
+// Hook para datos históricos con período configurable
+export const useHistoricalData = (
+  casa = "blue",
+  period: TimePeriod = "30d"
+) => {
   return useQuery({
-    queryKey: ["historical", casa],
-    queryFn: () => fetchHistoricalData(casa),
+    queryKey: ["historical", casa, period],
+    queryFn: () => fetchHistoricalData(casa, period),
     staleTime: 300000, // 5 minutos
     retry: 2,
   });

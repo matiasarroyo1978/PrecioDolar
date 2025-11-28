@@ -9,7 +9,12 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { TrendingUp, Calendar } from "lucide-react";
-import { useHistoricalData, HistoricalData } from "../../hooks/useCurrencies";
+import {
+  useHistoricalData,
+  HistoricalData,
+  TimePeriod,
+  TIME_PERIOD_OPTIONS,
+} from "../../hooks/useCurrencies";
 import { ChartSkeleton } from "../ui/Skeleton";
 import { cn } from "../../utils/cn";
 
@@ -29,7 +34,11 @@ export const HistoricalChart = ({
   defaultCurrency = "blue",
 }: HistoricalChartProps) => {
   const [selectedCurrency, setSelectedCurrency] = useState(defaultCurrency);
-  const { data, isLoading, error } = useHistoricalData(selectedCurrency);
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>("30d");
+  const { data, isLoading, error } = useHistoricalData(
+    selectedCurrency,
+    selectedPeriod
+  );
 
   if (isLoading) {
     return <ChartSkeleton />;
@@ -46,14 +55,40 @@ export const HistoricalChart = ({
   }
 
   // Formatear datos para el gráfico
-  const chartData = data.map((item: HistoricalData) => ({
-    fecha: new Date(item.fecha).toLocaleDateString("es-AR", {
-      day: "2-digit",
-      month: "2-digit",
-    }),
-    venta: item.venta,
-    compra: item.compra,
-  }));
+  const chartData = data.map((item: HistoricalData) => {
+    // Formato de fecha según el período seleccionado
+    const date = new Date(item.fecha);
+    let formattedDate: string;
+
+    if (selectedPeriod === "30d") {
+      formattedDate = date.toLocaleDateString("es-AR", {
+        day: "2-digit",
+        month: "2-digit",
+      });
+    } else if (selectedPeriod === "6m" || selectedPeriod === "ytd") {
+      formattedDate = date.toLocaleDateString("es-AR", {
+        month: "short",
+        year: "2-digit",
+      });
+    } else {
+      formattedDate = date.toLocaleDateString("es-AR", {
+        month: "short",
+        year: "2-digit",
+      });
+    }
+
+    return {
+      fecha: formattedDate,
+      fullDate: item.fecha,
+      venta: item.venta,
+      compra: item.compra,
+    };
+  });
+
+  // Obtener el label del período actual
+  const currentPeriodLabel =
+    TIME_PERIOD_OPTIONS.find((p) => p.value === selectedPeriod)?.label ||
+    "30 días";
 
   // Calcular variación
   const firstValue = data[0]?.venta || 0;
@@ -93,7 +128,9 @@ export const HistoricalChart = ({
             <h3 className="font-semibold text-var(--text-primary) text-sm">
               Histórico
             </h3>
-            <p className="text-xs text-var(--text-muted)">Últimos 30 días</p>
+            <p className="text-xs text-var(--text-muted)">
+              {currentPeriodLabel}
+            </p>
           </div>
         </div>
 
@@ -109,6 +146,24 @@ export const HistoricalChart = ({
             </option>
           ))}
         </select>
+      </div>
+
+      {/* Selector de período */}
+      <div className="flex gap-1 flex-wrap">
+        {TIME_PERIOD_OPTIONS.map((period) => (
+          <button
+            key={period.value}
+            onClick={() => setSelectedPeriod(period.value)}
+            className={cn(
+              "px-2.5 py-1 rounded-lg text-xs font-medium transition-all duration-200",
+              selectedPeriod === period.value
+                ? "bg-purple-500 text-white"
+                : "bg-var(--bg-primary)/50 text-var(--text-muted) hover:bg-var(--bg-primary) hover:text-var(--text-primary)"
+            )}
+          >
+            {period.label}
+          </button>
+        ))}
       </div>
 
       {/* Stats rápidos */}
