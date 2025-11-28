@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PrecioDolar - Cotización dólar Argentina",
-  "description": "Extensión Argentina que muestra la cotización del dólar oficial, blue, MEP, CCL y más. Incluye calculadora, gráficos históricos y alertas de precio.",
+  "description": "Extensión Argentina que muestra la cotización del dólar oficial, blue y más. Incluye calculadora, gráficos históricos y alertas.",
   "version": "2.0.0",
   "icons": {
     "16": "logo16.png",
